@@ -4,13 +4,10 @@ PACKAGES := go list ./... | grep -v /vendor | grep -v /out
 
 bin=turbo-terraform
 product: clean
-	env GOOS=darwin GOARCH=amd64 go build -gcflags "-N -l" -o ${OUTPUT_DIR}/${bin} ./cmd
+	env GOOS=linux GOARCH=amd64 go build -gcflags "-N -l" -o ${OUTPUT_DIR}/${bin} ./cmd
 
 build: clean
 	go build -o ${OUTPUT_DIR}/${bin} ./cmd
-
-debug-product: clean
-        env GOOS=darwin GOARCH=amd64 go build -gcflags "-N -l" -o ${OUTPUT_DIR}/${bin}.debug ./cmd
 
 test: clean
 	@go test -v -race ./pkg/...
