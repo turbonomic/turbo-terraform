@@ -1,7 +1,5 @@
 {
     "probeCategory": "Orchestrator",
     "targetType": "Terraform",
-    "targetName": "Enlin Local",
-    "username": "administrator",
-    "password": "a"
+    "targetName": "Local"
 }

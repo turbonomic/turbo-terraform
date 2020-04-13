@@ -9,8 +9,6 @@ import (
 const (
 	TargetIdField string = "targetIdentifier"
 	propertyId    string = "id"
-	Username      string = "username"
-	Password      string = "password"
 )
 
 // Implements the TurboRegistrationClient interface
@@ -47,16 +45,6 @@ func (rClient *TFRegistrationClient) GetAccountDefinition() []*proto.AccountDefE
 	targetIDAcctDefEntry := builder.NewAccountDefEntryBuilder(TargetIdField, "TargetID",
 		"ID or address of the target", ".*", false, false).Create()
 	acctDefProps = append(acctDefProps, targetIDAcctDefEntry)
-
-	// username
-	usernameAcctDefEntry := builder.NewAccountDefEntryBuilder(Username, "Username",
-		"Username of the target cluster master", ".*", false, false).Create()
-	acctDefProps = append(acctDefProps, usernameAcctDefEntry)
-
-	// password
-	passwordAcctDefEntry := builder.NewAccountDefEntryBuilder(Password, "Password",
-		"Password of the target cluster master", ".*", false, true).Create()
-	acctDefProps = append(acctDefProps, passwordAcctDefEntry)
 
 	return acctDefProps
 }

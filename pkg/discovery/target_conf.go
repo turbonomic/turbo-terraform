@@ -8,9 +8,6 @@ import (
 )
 
 const (
-	// When user doesn't specify username and password, the default username and password will be used.
-	defaultUsername      = "defaultUser"
-	defaultPassword      = "defaultPassword"
 	defaultProbeCategory = "Orchestrator"
 	defaultTargetType    = "Terraform"
 )
@@ -20,8 +17,6 @@ type TargetConf struct {
 	ProbeCategory string `json:"probeCategory,omitempty"`
 	TargetType    string `json:"targetType,omitempty"`
 	Identifier    string `json:"targetName,omitempty"`
-	Username      string `json:"username,omitempty"`
-	Password      string `json:"password,omitempty"`
 }
 
 // Create a new ExampleClientConf from file. Other fields have default values and can be overridden.
@@ -58,14 +53,6 @@ func (config *TargetConf) ValidateK8sTargetConfig() error {
 	// Prefix target id (address) with the target type (i.e., "Kubernetes-") to
 	// avoid duplicate target id with other types of targets (e.g., aws).
 	config.Identifier = defaultTargetType + "-" + config.Identifier
-
-	if config.Username == "" {
-		config.Username = defaultUsername
-	}
-
-	if config.Password == "" {
-		config.Password = defaultPassword
-	}
 
 	if config.ProbeCategory == "" {
 		config.ProbeCategory = defaultProbeCategory

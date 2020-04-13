@@ -82,20 +82,6 @@ func (dc *DiscoveryClient) GetAccountValues() *sdkprobe.TurboTargetInfo {
 	}
 	accountValues = append(accountValues, accVal)
 
-	username := registration.Username
-	accVal = &proto.AccountValue{
-		Key:         &username,
-		StringValue: &targetConf.Username,
-	}
-	accountValues = append(accountValues, accVal)
-
-	password := registration.Password
-	accVal = &proto.AccountValue{
-		Key:         &password,
-		StringValue: &targetConf.Password,
-	}
-	accountValues = append(accountValues, accVal)
-
 	targetInfo := sdkprobe.NewTurboTargetInfoBuilder(targetConf.ProbeCategory, targetConf.TargetType, targetID, accountValues).Create()
 
 	glog.V(2).Infof("Got AccountValues for target:%v", targetConf.Identifier)
