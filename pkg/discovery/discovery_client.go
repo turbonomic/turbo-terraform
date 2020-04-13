@@ -34,29 +34,9 @@ type EntityBuilderParams struct {
 	keepStandalone bool
 }
 
-type TFState struct {
-	Version   string      `json:"version,omitempty"`
-	Resources []*Resource `json:"resources,omitempty"`
-}
-
-type Resource struct {
-	Type      string      `json:"type,omitempty"`
-	Name      string      `json:"name,omitempty"`
-	Provider  string      `json:"provider,omitempty"`
-	Instances []*Instance `json:"instances,omitempty"`
-}
-
-type Instance struct {
-	IndexKey   string                `json:"index_key,omitempty"`
-	Attributes []*InstanceAttributes `json:"attributes,omitempty"`
-}
-
-type InstanceAttributes struct {
-	Ami              string `json:"ami,omitempty"`
-	AvailabilityZone string `json:"availability_zone,omitempty"`
-	CPUCoreCount     int    `json:"cpu_core_count,omitempty"`
-	InstanceType     string `json:"instance_type,omitempty"`
-	Id               string `json:"id,omitempty"`
+type AwsInstance struct {
+	id                string
+	availability_zone string
 }
 
 func NewDiscoveryClient(targetConfig *TargetConf, tfPath *string) *DiscoveryClient {
@@ -120,26 +100,21 @@ func (dc *DiscoveryClient) Discover(accountValues []*proto.AccountValue) (*proto
 			return nil, fmt.Errorf("File error: %v\n" + e.Error())
 		}
 		resources := tfstate.Resources
-		var instanceMap map[string]map[string]struct{}
+		var instanceMap map[string]map[AwsInstance]struct{}
+
 		for _, resource := range resources {
 			if resource.Type == "aws_instance" {
-				instanceMap = createNameToInstancesMap(resource)
+				instanceMap = createNameToAwsInstancesMap(resource)
 			}
 		}
-		for name, v := range instanceMap {
-			// Create Group when the instance size is > 1
-			if len(v) > 1 {
-
-			} else {
-				for id := range v {
-					entityDto, e := createEntityDto(name, id)
-					if e != nil {
-						glog.Errorf("Error building EntityDTO from metric %s", err)
-						return nil, err
-					}
-					resultDTOs = append(resultDTOs, entityDto)
+		for name, instances := range instanceMap {
+			for instance := range instances {
+				entityDto, e := createEntityDto(name, instance.id, instance.availability_zone)
+				if e != nil {
+					glog.Errorf("Error building EntityDTO from metric %s", err)
+					return nil, err
 				}
-
+				resultDTOs = append(resultDTOs, entityDto)
 			}
 
 		}
@@ -155,27 +130,32 @@ func (dc *DiscoveryClient) Discover(accountValues []*proto.AccountValue) (*proto
 	return response, nil
 }
 
-func createNameToInstancesMap(resource *parser.Resource) map[string]map[string]struct{} {
-	instanceNameToIntancesMap := make(map[string]map[string]struct{})
+func createNameToAwsInstancesMap(resource *parser.Resource) map[string]map[AwsInstance]struct{} {
+	instanceNameToIntancesMap := make(map[string]map[AwsInstance]struct{})
 	name := resource.Name
 	instanceSet, exist := instanceNameToIntancesMap[name]
 	if !exist {
-		instanceSet = make(map[string]struct{})
+		instanceSet = make(map[AwsInstance]struct{})
 	}
 	for _, instance := range resource.Instances {
 		attributes := instance.Attributes
-		if id, ok := attributes["id"]; ok {
-			instanceSet[fmt.Sprintf("%v", id)] = struct{}{}
+		id := attributes["id"]
+		availabilityZone := attributes["availability_zone"]
+		awsInstance := &AwsInstance{
+			id:                fmt.Sprintf("%v", id),
+			availability_zone: fmt.Sprintf("%v", availabilityZone),
 		}
+		instanceSet[*awsInstance] = struct{}{}
+
 	}
 	instanceNameToIntancesMap[name] = instanceSet
 	return instanceNameToIntancesMap
 }
 
-func createEntityDto(name string, id string) (*proto.EntityDTO, error) {
+func createEntityDto(name string, id string, az string) (*proto.EntityDTO, error) {
 	entityDto, err := builder.NewEntityDTOBuilder(proto.EntityDTO_VIRTUAL_MACHINE, id).
 		DisplayName(name).
-		WithProperty(getEntityProperty("aws::us-east-2::VM::i-02661aa369e8b4ad9")).
+		WithProperty(getEntityProperty(getAwsInstanceName(id, az))).
 		ReplacedBy(getReplacementMetaData(proto.EntityDTO_VIRTUAL_MACHINE)).
 		Monitored(false).
 		Create()
@@ -186,6 +166,13 @@ func createEntityDto(name string, id string) (*proto.EntityDTO, error) {
 	//entityDto.KeepStandalone = true
 
 	return entityDto, nil
+}
+
+func getAwsInstanceName(id string, az string) string {
+	awsFormat := "aws::%v::VM::%v"
+	region := az[0 : len(az)-1]
+	result := fmt.Sprintf(awsFormat, region, id)
+	return result
 }
 
 func getReplacementMetaData(entityType proto.EntityDTO_EntityType) *proto.EntityDTO_ReplacementEntityMetaData {
