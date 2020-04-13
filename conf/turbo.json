@@ -1,0 +1,11 @@
+{
+    "serverMeta": {
+        "turboServer": "https://10.10.168.183",
+        "version": "7.21.4"
+    },
+    "restAPIConfig": {
+        "opsManagerUserName": "administrator",
+        "opsManagerPassword": "a"
+    }
+}
+    
