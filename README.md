@@ -9,5 +9,5 @@ make product
 ## Run
 tfpath is the argument for turbo-terraform to discover the existed terraform state files
 ```console
-./_output/turbo-terraform -tfpath=/Users/Enlin/terraform-app
+./_output/turbo-terraform -tfpath=<terraform_files_path>
 ```
