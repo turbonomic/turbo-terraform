@@ -8,8 +8,8 @@ import (
 type TurboActionType string
 
 const (
-	ActionResizeVM TurboActionType = "resizeVirtualMachine"
-	ActionUnknown  TurboActionType = "unknown"
+	ActionScaleVM TurboActionType = "ScaleVirtualMachine"
+	ActionUnknown TurboActionType = "unknown"
 )
 
 type TurboExecutor interface {

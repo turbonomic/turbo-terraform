@@ -6,10 +6,12 @@ import (
 	"github.com/enlinxu/turbo-terraform/pkg/registration"
 	"github.com/enlinxu/turbo-terraform/pkg/util"
 	"github.com/golang/glog"
-	"github.com/turbonomic/turbo-go-sdk/pkg/builder"
+
 	sdkprobe "github.com/turbonomic/turbo-go-sdk/pkg/probe"
 	"github.com/turbonomic/turbo-go-sdk/pkg/proto"
 )
+
+var EntityIdToFilesMap = make(map[string]map[string]struct{})
 
 type DiscoveryClient struct {
 	targetConfig *TargetConf
@@ -21,13 +23,6 @@ type DiscoveryTargetParams struct {
 	TargetType            string
 	TargetName            string
 	ProbeCategory         string
-}
-
-// Implements the TurboDiscoveryClient interface
-type TFDiscoveryClient struct {
-	discoveryTargetParams *DiscoveryTargetParams
-	keepStandalone        bool
-	metricEndpoint        []string
 }
 
 type EntityBuilderParams struct {
@@ -86,117 +81,40 @@ func printDTOs(dtos []*proto.EntityDTO) string {
 func (dc *DiscoveryClient) Discover(accountValues []*proto.AccountValue) (*proto.DiscoveryResponse, error) {
 	glog.V(2).Infof("begin to discovery target...")
 
-	var resultDTOs []*proto.EntityDTO
-
+	var entityDTOs []*proto.EntityDTO
+	var groupDTOs []*proto.GroupDTO
 	// Replace with real discovery
 	tfStateTofiles, err := util.CreateTFStateToFilesMap(*dc.tfPath, "*.tfstate")
 	if err != nil {
 		glog.Error("Failed to parse the TF State files %v" + err.Error())
 		return nil, err
 	}
-	for tfStateFilePath, _ := range tfStateTofiles {
+	for tfStateFilePath, files := range tfStateTofiles {
 		tfstate, e := parser.ParseTerraformStateFile(tfStateFilePath)
 		if e != nil {
 			return nil, fmt.Errorf("File error: %v\n" + e.Error())
 		}
 		resources := tfstate.Resources
-		var instanceMap map[string]map[AwsInstance]struct{}
 
 		for _, resource := range resources {
 			if resource.Type == "aws_instance" {
-				instanceMap = createNameToAwsInstancesMap(resource)
-			}
-		}
-		for name, instances := range instanceMap {
-			for instance := range instances {
-				entityDto, e := createEntityDto(name, instance.id, instance.availability_zone)
+				awsParser := parser.NewAwsParser(resource, tfStateFilePath, files)
+				awsEntityDtos, awsGroupDTOS, e := awsParser.GetAwsInstanceResource(EntityIdToFilesMap)
 				if e != nil {
-					glog.Errorf("Error building EntityDTO from metric %s", err)
+					glog.Errorf("Error building EntityDTO and GroupDTO for AWS Instances %s", err)
 					return nil, err
 				}
-				resultDTOs = append(resultDTOs, entityDto)
+				entityDTOs = append(entityDTOs, awsEntityDtos...)
+				groupDTOs = append(groupDTOs, awsGroupDTOS...)
 			}
-
 		}
 	}
 
-	glog.V(2).Infof("end of discoverying target. [%d]", len(resultDTOs))
-	glog.V(3).Infof("DTOs:\n%s", printDTOs(resultDTOs))
-	printDTOs(resultDTOs)
+	glog.V(2).Infof("end of discoverying target. [%d]", len(entityDTOs))
+	glog.V(4).Infof("DTOs:\n%s", printDTOs(entityDTOs))
 	response := &proto.DiscoveryResponse{
-		EntityDTO: resultDTOs,
+		EntityDTO:       entityDTOs,
+		DiscoveredGroup: groupDTOs,
 	}
-
 	return response, nil
-}
-
-func createNameToAwsInstancesMap(resource *parser.Resource) map[string]map[AwsInstance]struct{} {
-	instanceNameToIntancesMap := make(map[string]map[AwsInstance]struct{})
-	name := resource.Name
-	instanceSet, exist := instanceNameToIntancesMap[name]
-	if !exist {
-		instanceSet = make(map[AwsInstance]struct{})
-	}
-	for _, instance := range resource.Instances {
-		attributes := instance.Attributes
-		id := attributes["id"]
-		availabilityZone := attributes["availability_zone"]
-		awsInstance := &AwsInstance{
-			id:                fmt.Sprintf("%v", id),
-			availability_zone: fmt.Sprintf("%v", availabilityZone),
-		}
-		instanceSet[*awsInstance] = struct{}{}
-
-	}
-	instanceNameToIntancesMap[name] = instanceSet
-	return instanceNameToIntancesMap
-}
-
-func createEntityDto(name string, id string, az string) (*proto.EntityDTO, error) {
-	entityDto, err := builder.NewEntityDTOBuilder(proto.EntityDTO_VIRTUAL_MACHINE, id).
-		DisplayName(name).
-		WithProperty(getEntityProperty(getAwsInstanceName(id, az))).
-		ReplacedBy(getReplacementMetaData(proto.EntityDTO_VIRTUAL_MACHINE)).
-		Monitored(false).
-		Create()
-	if err != nil {
-		glog.Errorf("Error building EntityDTO for name %s: %s", name, err)
-		return nil, err
-	}
-	//entityDto.KeepStandalone = true
-
-	return entityDto, nil
-}
-
-func getAwsInstanceName(id string, az string) string {
-	awsFormat := "aws::%v::VM::%v"
-	region := az[0 : len(az)-1]
-	result := fmt.Sprintf(awsFormat, region, id)
-	return result
-}
-
-func getReplacementMetaData(entityType proto.EntityDTO_EntityType) *proto.EntityDTO_ReplacementEntityMetaData {
-	attr := "id"
-	useTopoExt := true
-
-	b := builder.NewReplacementEntityMetaDataBuilder().
-		Matching("Proxy_VM_UUID").
-		MatchingExternal(&proto.ServerEntityPropDef{
-			Entity:     &entityType,
-			Attribute:  &attr,
-			UseTopoExt: &useTopoExt,
-		})
-
-	return b.Build()
-}
-
-func getEntityProperty(value string) *proto.EntityDTO_EntityProperty {
-	attr := "Proxy_VM_UUID"
-	ns := "DEFAULT"
-
-	return &proto.EntityDTO_EntityProperty{
-		Namespace: &ns,
-		Name:      &attr,
-		Value:     &value,
-	}
 }

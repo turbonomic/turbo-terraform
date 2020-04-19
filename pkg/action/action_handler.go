@@ -13,11 +13,11 @@ type ActionHandler struct {
 	stop            chan struct{}
 }
 
-func NewActionHandler(stop chan struct{}) *ActionHandler {
+func NewActionHandler() *ActionHandler {
 	executors := make(map[TurboActionType]TurboExecutor)
 
 	handler := &ActionHandler{
-		stop:            stop,
+		stop:            make(chan struct{}),
 		actionExecutors: executors,
 	}
 
@@ -36,8 +36,8 @@ func (h *ActionHandler) String() string {
 }
 
 func (h *ActionHandler) registerExecutors() {
-	vmResizer := NewActionExecutor("vmResize")
-	h.actionExecutors[ActionResizeVM] = vmResizer
+	vmScaler := NewActionExecutor("vmScale")
+	h.actionExecutors[ActionScaleVM] = vmScaler
 }
 
 func (h *ActionHandler) goodResult(msg string) *proto.ActionResult {
@@ -125,11 +125,11 @@ func getActionType(action *proto.ActionItemDTO) (TurboActionType, error) {
 	glog.V(2).Infof("action [%v-%v] is received.", atype, objectType)
 
 	switch atype {
-	case proto.ActionItemDTO_RIGHT_SIZE:
+	case proto.ActionItemDTO_SCALE:
 		glog.V(4).Infof("[%v] [%v]", atype, objectType)
 		switch objectType {
 		case proto.EntityDTO_VIRTUAL_MACHINE:
-			return ActionResizeVM, nil
+			return ActionScaleVM, nil
 		}
 	}
 

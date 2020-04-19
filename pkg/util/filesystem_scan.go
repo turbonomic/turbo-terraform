@@ -20,7 +20,7 @@ func CreateTFStateToFilesMap(root, pattern string) (map[string]map[string]struct
 		if matched, err := filepath.Match(pattern, filepath.Base(path)); err != nil {
 			return err
 		} else if matched {
-			dir := path[:strings.LastIndex(path, "/")]
+			dir := path[:strings.LastIndex(path, "/")+1]
 			fileSet, exist := tfStateToFiles[path]
 			if !exist {
 				fileSet = make(map[string]struct{})
@@ -30,7 +30,7 @@ func CreateTFStateToFilesMap(root, pattern string) (map[string]map[string]struct
 				fmt.Println(err)
 			}
 			for _, f := range files {
-				fileSet[f.Name()] = struct{}{}
+				fileSet[dir+f.Name()] = struct{}{}
 			}
 			tfStateToFiles[path] = fileSet
 		}

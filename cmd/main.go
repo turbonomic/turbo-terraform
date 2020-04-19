@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/enlinxu/turbo-terraform/pkg/action"
 	"github.com/enlinxu/turbo-terraform/pkg/discovery"
 	"github.com/enlinxu/turbo-terraform/pkg/registration"
 	"github.com/golang/glog"
@@ -29,7 +30,7 @@ func getFlags() {
 	flag.Parse()
 }
 
-func buildProbe(targetConf string, stop chan struct{}) (*probe.ProbeBuilder, error) {
+func buildProbe(targetConf string) (*probe.ProbeBuilder, error) {
 	config, err := discovery.NewTargetConf(targetConf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load json conf:%v", err)
@@ -37,12 +38,14 @@ func buildProbe(targetConf string, stop chan struct{}) (*probe.ProbeBuilder, err
 
 	regClient := &registration.TFRegistrationClient{}
 	discoveryClient := discovery.NewDiscoveryClient(config, &tfPath)
+	actionHandler := action.NewActionHandler()
 
 	builder := probe.NewProbeBuilder(config.TargetType, config.ProbeCategory).
 		RegisteredBy(regClient).
 		WithActionPolicies(regClient).
 		WithEntityMetadata(regClient).
-		DiscoversTarget(config.Identifier, discoveryClient)
+		DiscoversTarget(config.Identifier, discoveryClient).
+		ExecutesActionsBy(actionHandler)
 
 	return builder, nil
 }
@@ -53,8 +56,7 @@ func createTapService() (*service.TAPService, error) {
 		return nil, fmt.Errorf("failed to parse OpsMgrConfig: %v", err)
 	}
 
-	stop := make(chan struct{})
-	probeBuilder, err := buildProbe(targetConf, stop)
+	probeBuilder, err := buildProbe(targetConf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create probe: %v", err)
 	}
