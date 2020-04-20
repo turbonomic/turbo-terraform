@@ -106,6 +106,16 @@ func (dc *DiscoveryClient) Discover(accountValues []*proto.AccountValue) (*proto
 				}
 				entityDTOs = append(entityDTOs, awsEntityDtos...)
 				groupDTOs = append(groupDTOs, awsGroupDTOS...)
+			} else if resource.Type == "azurerm_linux_virtual_machine" || resource.Type == "azurerm_windows_virtual_machine" {
+				azureParser := parser.NewAzureParser(resource, tfStateFilePath, files)
+				azureEntityDtos, azureGroupDTOS, e := azureParser.GetAzureInstanceResource(EntityIdToFilesMap)
+				if e != nil {
+					glog.Errorf("Error building EntityDTO and GroupDTO for AZURE Instances %s", err)
+					return nil, err
+				}
+				entityDTOs = append(entityDTOs, azureEntityDtos...)
+				groupDTOs = append(groupDTOs, azureGroupDTOS...)
+
 			}
 		}
 	}

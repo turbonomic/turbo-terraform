@@ -8,31 +8,30 @@ import (
 	"strings"
 )
 
-type AwsInstance struct {
-	instanceId        string
-	availability_zone string
+type AzureInstance struct {
+	instanceId string
 }
 
-type AwsInstanceResource struct {
+type AzureInstanceResource struct {
 	id        string
 	instances []AwsInstance
 }
 
-type AwsParser struct {
+type AzureParser struct {
 	resource    *Resource
 	tfStatePath string
 	files       map[string]struct{}
 }
 
-func NewAwsParser(resource *Resource, path string, files map[string]struct{}) *AwsParser {
-	return &AwsParser{
+func NewAzureParser(resource *Resource, path string, files map[string]struct{}) *AzureParser {
+	return &AzureParser{
 		resource:    resource,
 		tfStatePath: path,
 		files:       files,
 	}
 }
 
-func (parser *AwsParser) GetAwsInstanceResource(entityToFilesMap map[string]map[string]struct{}) ([]*proto.EntityDTO, []*proto.GroupDTO, error) {
+func (parser *AzureParser) GetAzureInstanceResource(entityToFilesMap map[string]map[string]struct{}) ([]*proto.EntityDTO, []*proto.GroupDTO, error) {
 	var entityDTOs []*proto.EntityDTO
 	var groupDTOs []*proto.GroupDTO
 	name := parser.resource.Name
@@ -40,9 +39,8 @@ func (parser *AwsParser) GetAwsInstanceResource(entityToFilesMap map[string]map[
 
 	for _, instance := range parser.resource.Instances {
 		attributes := instance.Attributes
-		id := fmt.Sprintf("%v", attributes["id"])
-		availabilityZone := fmt.Sprintf("%v", attributes["availability_zone"])
-		entityPropertyName := getAwsInstanceName(id, availabilityZone)
+		id := fmt.Sprintf("%v", attributes["virtual_machine_id"])
+		entityPropertyName := getAzureInstanceName(id)
 		entityDto, e := dtos.CreateEntityDto(name, id, entityPropertyName)
 		if e != nil {
 			glog.Errorf("Error building EntityDTO from metric %s", e)
@@ -66,9 +64,8 @@ func (parser *AwsParser) GetAwsInstanceResource(entityToFilesMap map[string]map[
 	return entityDTOs, groupDTOs, nil
 }
 
-func getAwsInstanceName(id string, az string) string {
-	awsFormat := "aws::%v::VM::%v"
-	region := az[0 : len(az)-1]
-	result := fmt.Sprintf(awsFormat, region, id)
+func getAzureInstanceName(id string) string {
+	azureFormat := "azure::VM::%v"
+	result := fmt.Sprintf(azureFormat, id)
 	return result
 }
