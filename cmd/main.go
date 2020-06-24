@@ -40,7 +40,7 @@ func buildProbe(targetConf string) (*probe.ProbeBuilder, error) {
 	discoveryClient := discovery.NewDiscoveryClient(config, &tfPath)
 	actionHandler := action.NewActionHandler()
 
-	builder := probe.NewProbeBuilder(config.TargetType, config.ProbeCategory).
+	builder := probe.NewProbeBuilder(config.TargetType, config.ProbeCategory, config.ProbeCategory).
 		RegisteredBy(regClient).
 		WithActionPolicies(regClient).
 		WithEntityMetadata(regClient).

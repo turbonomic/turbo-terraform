@@ -18,16 +18,18 @@ type AzureInstanceResource struct {
 }
 
 type AzureParser struct {
-	resource    *Resource
-	tfStatePath string
-	files       map[string]struct{}
+	resource             *Resource
+	tfStatePath          string
+	workloadControllerId string
+	files                map[string]struct{}
 }
 
-func NewAzureParser(resource *Resource, path string, files map[string]struct{}) *AzureParser {
+func NewAzureParser(resource *Resource, path string, workloadControllerId string, files map[string]struct{}) *AzureParser {
 	return &AzureParser{
-		resource:    resource,
-		tfStatePath: path,
-		files:       files,
+		resource:             resource,
+		tfStatePath:          path,
+		workloadControllerId: workloadControllerId,
+		files:                files,
 	}
 }
 
@@ -41,7 +43,7 @@ func (parser *AzureParser) GetAzureInstanceResource(entityToFilesMap map[string]
 		attributes := instance.Attributes
 		id := fmt.Sprintf("%v", attributes["virtual_machine_id"])
 		entityPropertyName := getAzureInstanceName(id)
-		entityDto, e := dtos.CreateEntityDto(name, id, entityPropertyName)
+		entityDto, e := dtos.CreateVMEntityDto(name, id, entityPropertyName, parser.workloadControllerId)
 		if e != nil {
 			glog.Errorf("Error building EntityDTO from metric %s", e)
 			return nil, nil, e

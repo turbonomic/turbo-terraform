@@ -8,9 +8,10 @@ import (
 	"github.com/turbonomic/turbo-go-sdk/pkg/proto"
 )
 
-func CreateEntityDto(name string, id string, entityPropertyName string) (*proto.EntityDTO, error) {
+func CreateVMEntityDto(name string, id string, entityPropertyName string, workloadControllerId string) (*proto.EntityDTO, error) {
 	entityDto, err := builder.NewEntityDTOBuilder(proto.EntityDTO_VIRTUAL_MACHINE, id).
 		DisplayName(name).
+		ControlledBy(workloadControllerId).
 		WithProperty(getEntityProperty(entityPropertyName)).
 		ReplacedBy(getReplacementMetaData(proto.EntityDTO_VIRTUAL_MACHINE)).
 		Monitored(false).
@@ -34,6 +35,18 @@ func CreateGroupDto(path string, name string, instances []string) (*proto.GroupD
 	}
 
 	return groupDTO, nil
+}
+
+func CreateWorkloadControllerDto(name string) (*proto.EntityDTO, error) {
+	entityDto, err := builder.NewEntityDTOBuilder(proto.EntityDTO_WORKLOAD_CONTROLLER, name).
+		DisplayName(name).
+		Monitored(true).
+		Create()
+	if err != nil {
+		glog.Errorf("Error building EntityDTO for name %s: %s", name, err)
+		return nil, err
+	}
+	return entityDto, nil
 }
 
 func getReplacementMetaData(entityType proto.EntityDTO_EntityType) *proto.EntityDTO_ReplacementEntityMetaData {

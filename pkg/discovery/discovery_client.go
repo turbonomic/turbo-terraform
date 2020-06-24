@@ -2,15 +2,17 @@ package discovery
 
 import (
 	"fmt"
+	"github.com/enlinxu/turbo-terraform/pkg/discovery/dtos"
 	"github.com/enlinxu/turbo-terraform/pkg/parser"
 	"github.com/enlinxu/turbo-terraform/pkg/registration"
 	"github.com/enlinxu/turbo-terraform/pkg/util"
 	"github.com/golang/glog"
-
 	sdkprobe "github.com/turbonomic/turbo-go-sdk/pkg/probe"
 	"github.com/turbonomic/turbo-go-sdk/pkg/proto"
+	"strings"
 )
 
+//TODO: Make the map threadsafe, maybe looking at the syncmap
 var EntityIdToFilesMap = make(map[string]map[string]struct{})
 
 type DiscoveryClient struct {
@@ -83,6 +85,7 @@ func (dc *DiscoveryClient) Discover(accountValues []*proto.AccountValue) (*proto
 
 	var entityDTOs []*proto.EntityDTO
 	var groupDTOs []*proto.GroupDTO
+
 	// Replace with real discovery
 	tfStateTofiles, err := util.CreateTFStateToFilesMap(*dc.tfPath, "*.tfstate")
 	if err != nil {
@@ -90,24 +93,33 @@ func (dc *DiscoveryClient) Discover(accountValues []*proto.AccountValue) (*proto
 		return nil, err
 	}
 	for tfStateFilePath, files := range tfStateTofiles {
+		members := []string{}
 		tfstate, e := parser.ParseTerraformStateFile(tfStateFilePath)
 		if e != nil {
 			return nil, fmt.Errorf("File error: %v\n" + e.Error())
 		}
 		resources := tfstate.Resources
-
+		dirPath := tfStateFilePath[:strings.LastIndex(tfStateFilePath, "/")+1]
+		//Create one workload controller per TFState
+		wcDto, e := dtos.CreateWorkloadControllerDto(dirPath)
+		//wcDto, e := dtos.CreateVmSpecDto(dirPath)
+		if e != nil {
+			glog.Errorf("Error building workload controller from metric %s", e)
+			return nil, err
+		}
 		for _, resource := range resources {
 			if resource.Type == "aws_instance" {
-				awsParser := parser.NewAwsParser(resource, tfStateFilePath, files)
-				awsEntityDtos, awsGroupDTOS, e := awsParser.GetAwsInstanceResource(EntityIdToFilesMap)
+				awsParser := parser.NewAwsParser(resource, tfStateFilePath, dirPath, files)
+				awsEntityDtos, awsGroupDTOS, mem, e := awsParser.GetAwsInstanceResource(EntityIdToFilesMap)
 				if e != nil {
 					glog.Errorf("Error building EntityDTO and GroupDTO for AWS Instances %s", err)
 					return nil, err
 				}
 				entityDTOs = append(entityDTOs, awsEntityDtos...)
 				groupDTOs = append(groupDTOs, awsGroupDTOS...)
+				members = append(members, mem...)
 			} else if resource.Type == "azurerm_linux_virtual_machine" || resource.Type == "azurerm_windows_virtual_machine" {
-				azureParser := parser.NewAzureParser(resource, tfStateFilePath, files)
+				azureParser := parser.NewAzureParser(resource, tfStateFilePath, dirPath, files)
 				azureEntityDtos, azureGroupDTOS, e := azureParser.GetAzureInstanceResource(EntityIdToFilesMap)
 				if e != nil {
 					glog.Errorf("Error building EntityDTO and GroupDTO for AZURE Instances %s", err)
@@ -115,9 +127,10 @@ func (dc *DiscoveryClient) Discover(accountValues []*proto.AccountValue) (*proto
 				}
 				entityDTOs = append(entityDTOs, azureEntityDtos...)
 				groupDTOs = append(groupDTOs, azureGroupDTOS...)
-
+				//members = append(members, mem...)
 			}
 		}
+		entityDTOs = append(entityDTOs, wcDto)
 	}
 
 	glog.V(2).Infof("end of discoverying target. [%d]", len(entityDTOs))

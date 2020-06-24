@@ -2,6 +2,7 @@ package registration
 
 import (
 	"github.com/enlinxu/turbo-terraform/pkg/discovery/constant"
+	"github.com/golang/glog"
 	"github.com/turbonomic/turbo-go-sdk/pkg/builder"
 	"github.com/turbonomic/turbo-go-sdk/pkg/proto"
 	"github.com/turbonomic/turbo-go-sdk/pkg/supplychain"
@@ -31,9 +32,15 @@ func (f *SupplyChainFactory) CreateSupplyChain() ([]*proto.TemplateDTO, error) {
 	}
 
 	vmNode.MergedEntityMetaData = vmMetadata
+	// Workload Controller supply chain template
+	workloadControllerSupplyChainNode, err := f.buildWorkloadControllerSupplyBuilder()
+	if err != nil {
+		return nil, err
+	}
 
+	glog.V(4).Infof("Supply chain node: %+v", workloadControllerSupplyChainNode)
 	return supplychain.NewSupplyChainBuilder().
-		Top(vmNode).
+		Top(vmNode).Entity(workloadControllerSupplyChainNode).
 		Create()
 }
 
@@ -50,9 +57,7 @@ func (f *SupplyChainFactory) getVMStitchingMetaData() (*proto.MergedEntityMetada
 	var vmbuilder *builder.MergedEntityMetadataBuilder
 
 	vmbuilder = builder.NewMergedEntityMetadataBuilder().
-		InternalMatchingType(builder.MergedEntityMetadata_STRING).
 		InternalMatchingProperty(proxyVMUUID).
-		ExternalMatchingType(builder.MergedEntityMetadata_STRING).
 		ExternalMatchingField(VMUUID, []string{})
 
 	metadata, err := vmbuilder.Build()
@@ -63,19 +68,15 @@ func (f *SupplyChainFactory) getVMStitchingMetaData() (*proto.MergedEntityMetada
 	return metadata, nil
 }
 
-// Stitching metadata required for stitching with XL
-func (f *SupplyChainFactory) buildNodeMergedEntityMetadata() (*proto.MergedEntityMetadata, error) {
-	mergedEntityMetadataBuilder := builder.NewMergedEntityMetadataBuilder()
+func (f *SupplyChainFactory) buildWorkloadControllerSupplyBuilder() (*proto.TemplateDTO, error) {
+	builder := supplychain.NewSupplyChainNodeBuilder(proto.EntityDTO_WORKLOAD_CONTROLLER)
+	// Link from Pod to VM
+	workloadControllerVMLink := supplychain.NewExternalEntityLinkBuilder()
+	workloadControllerVMLink.Link(proto.EntityDTO_WORKLOAD_CONTROLLER, proto.EntityDTO_VIRTUAL_MACHINE, proto.Provider_LAYERED_OVER)
 
-	mergedEntityMetadataBuilder.PatchField(ActionEligibilityField, []string{})
-	// Set up matching criteria based on stitching type
-
-	mergedEntityMetadataBuilder.
-		InternalMatchingType(builder.MergedEntityMetadata_STRING).
-		InternalMatchingProperty(proxyVMUUID).
-		ExternalMatchingType(builder.MergedEntityMetadata_STRING).
-		ExternalMatchingField(VMUUID, []string{})
-
-	return mergedEntityMetadataBuilder.
-		Build()
+	workloadControllerLink, err := workloadControllerVMLink.Build()
+	if err != nil {
+		return nil, err
+	}
+	return builder.ConnectsTo(workloadControllerLink).Create()
 }

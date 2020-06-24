@@ -80,6 +80,7 @@ func (rclient *TFRegistrationClient) GetEntityMetadata() []*proto.EntityIdentity
 
 	entities := []proto.EntityDTO_EntityType{
 		proto.EntityDTO_VIRTUAL_MACHINE,
+		proto.EntityDTO_WORKLOAD_CONTROLLER,
 	}
 
 	for _, etype := range entities {
