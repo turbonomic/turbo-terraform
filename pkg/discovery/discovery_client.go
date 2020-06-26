@@ -108,17 +108,27 @@ func (dc *DiscoveryClient) Discover(accountValues []*proto.AccountValue) (*proto
 			return nil, err
 		}
 		for _, resource := range resources {
-			if resource.Type == "aws_instance" {
+			if strings.HasPrefix(resource.Type, "aws") {
 				awsParser := parser.NewAwsParser(resource, tfStateFilePath, dirPath, files)
-				awsEntityDtos, awsGroupDTOS, mem, e := awsParser.GetAwsInstanceResource(EntityIdToFilesMap)
-				if e != nil {
-					glog.Errorf("Error building EntityDTO and GroupDTO for AWS Instances %s", err)
-					return nil, err
+				if resource.Type == "aws_instance" {
+					awsEntityDtos, awsGroupDTOS, mem, e := awsParser.ParseAwsInstanceResource(EntityIdToFilesMap)
+					if e != nil {
+						glog.Errorf("Error building EntityDTO and GroupDTO for AWS Instances %s", err)
+						return nil, err
+					}
+					entityDTOs = append(entityDTOs, awsEntityDtos...)
+					groupDTOs = append(groupDTOs, awsGroupDTOS...)
+					members = append(members, mem...)
+				} else if resource.Type == "aws_autoscaling_group" {
+					awsEntityDtos, e := awsParser.ParseAwsASGResource()
+					if e != nil {
+						glog.Errorf("Error building EntityDTO for AWS ASG %s", err)
+						return nil, err
+					}
+					entityDTOs = append(entityDTOs, awsEntityDtos...)
 				}
-				entityDTOs = append(entityDTOs, awsEntityDtos...)
-				groupDTOs = append(groupDTOs, awsGroupDTOS...)
-				members = append(members, mem...)
-			} else if resource.Type == "azurerm_linux_virtual_machine" || resource.Type == "azurerm_windows_virtual_machine" {
+			}
+			if resource.Type == "azurerm_linux_virtual_machine" || resource.Type == "azurerm_windows_virtual_machine" {
 				azureParser := parser.NewAzureParser(resource, tfStateFilePath, dirPath, files)
 				azureEntityDtos, azureGroupDTOS, e := azureParser.GetAzureInstanceResource(EntityIdToFilesMap)
 				if e != nil {

@@ -8,12 +8,12 @@ import (
 	"github.com/turbonomic/turbo-go-sdk/pkg/proto"
 )
 
-func CreateVMEntityDto(name string, id string, entityPropertyName string, workloadControllerId string) (*proto.EntityDTO, error) {
-	entityDto, err := builder.NewEntityDTOBuilder(proto.EntityDTO_VIRTUAL_MACHINE, id).
+func CreateEntityDto(entityType proto.EntityDTO_EntityType, name string, id string, entityPropertyName string, workloadControllerId string) (*proto.EntityDTO, error) {
+	entityDto, err := builder.NewEntityDTOBuilder(entityType, id).
 		DisplayName(name).
 		ControlledBy(workloadControllerId).
 		WithProperty(getEntityProperty(entityPropertyName)).
-		ReplacedBy(getReplacementMetaData(proto.EntityDTO_VIRTUAL_MACHINE)).
+		ReplacedBy(getReplacementMetaData(entityType)).
 		Monitored(false).
 		Create()
 	if err != nil {

@@ -34,7 +34,7 @@ func NewAwsParser(resource *Resource, path string, workloadControllerId string, 
 	}
 }
 
-func (parser *AwsParser) GetAwsInstanceResource(entityToFilesMap map[string]map[string]struct{}) ([]*proto.EntityDTO, []*proto.GroupDTO, []string, error) {
+func (parser *AwsParser) ParseAwsInstanceResource(entityToFilesMap map[string]map[string]struct{}) ([]*proto.EntityDTO, []*proto.GroupDTO, []string, error) {
 	var entityDTOs []*proto.EntityDTO
 	var groupDTOs []*proto.GroupDTO
 	name := parser.resource.Name
@@ -45,7 +45,7 @@ func (parser *AwsParser) GetAwsInstanceResource(entityToFilesMap map[string]map[
 		id := fmt.Sprintf("%v", attributes["id"])
 		availabilityZone := fmt.Sprintf("%v", attributes["availability_zone"])
 		entityPropertyName := getAwsInstanceName(id, availabilityZone)
-		entityDto, e := dtos.CreateVMEntityDto(name, id, entityPropertyName, workloadControllerId)
+		entityDto, e := dtos.CreateEntityDto(proto.EntityDTO_VIRTUAL_MACHINE, name, id, entityPropertyName, workloadControllerId)
 		if e != nil {
 			glog.Errorf("Error building EntityDTO from metric %s", e)
 			return nil, nil, nil, e
@@ -66,6 +66,24 @@ func (parser *AwsParser) GetAwsInstanceResource(entityToFilesMap map[string]map[
 	}
 
 	return entityDTOs, groupDTOs, members, nil
+}
+
+func (parser *AwsParser) ParseAwsASGResource() ([]*proto.EntityDTO, error) {
+	var entityDTOs []*proto.EntityDTO
+	name := parser.resource.Name
+	workloadControllerId := parser.workloadControllerId
+	for _, instance := range parser.resource.Instances {
+		attributes := instance.Attributes
+		id := fmt.Sprintf("%v", attributes["id"])
+		proxy_id := fmt.Sprintf("%v", attributes["arn"])
+		entityDto, e := dtos.CreateEntityDto(proto.EntityDTO_VM_SPEC, name, id, proxy_id, workloadControllerId)
+		if e != nil {
+			glog.Errorf("Error building EntityDTO from metric %s", e)
+			return nil, e
+		}
+		entityDTOs = append(entityDTOs, entityDto)
+	}
+	return entityDTOs, nil
 }
 
 func getAwsInstanceName(id string, az string) string {

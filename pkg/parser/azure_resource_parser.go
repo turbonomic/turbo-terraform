@@ -43,7 +43,7 @@ func (parser *AzureParser) GetAzureInstanceResource(entityToFilesMap map[string]
 		attributes := instance.Attributes
 		id := fmt.Sprintf("%v", attributes["virtual_machine_id"])
 		entityPropertyName := getAzureInstanceName(id)
-		entityDto, e := dtos.CreateVMEntityDto(name, id, entityPropertyName, parser.workloadControllerId)
+		entityDto, e := dtos.CreateEntityDto(proto.EntityDTO_VIRTUAL_MACHINE, name, id, entityPropertyName, parser.workloadControllerId)
 		if e != nil {
 			glog.Errorf("Error building EntityDTO from metric %s", e)
 			return nil, nil, e

@@ -32,6 +32,16 @@ func (f *SupplyChainFactory) CreateSupplyChain() ([]*proto.TemplateDTO, error) {
 	}
 
 	vmNode.MergedEntityMetaData = vmMetadata
+
+	vmSpecNode, err := f.buildVMSpecSupplyBuilder()
+	if err != nil {
+		return nil, err
+	}
+	vmSpecMetadata, err := f.getVMStitchingMetaData()
+	if err != nil {
+		return nil, err
+	}
+	vmSpecNode.MergedEntityMetaData = vmSpecMetadata
 	// Workload Controller supply chain template
 	workloadControllerSupplyChainNode, err := f.buildWorkloadControllerSupplyBuilder()
 	if err != nil {
@@ -40,7 +50,7 @@ func (f *SupplyChainFactory) CreateSupplyChain() ([]*proto.TemplateDTO, error) {
 
 	glog.V(4).Infof("Supply chain node: %+v", workloadControllerSupplyChainNode)
 	return supplychain.NewSupplyChainBuilder().
-		Top(vmNode).Entity(workloadControllerSupplyChainNode).
+		Top(vmNode).Entity(vmSpecNode).Entity(workloadControllerSupplyChainNode).
 		Create()
 }
 
@@ -70,7 +80,6 @@ func (f *SupplyChainFactory) getVMStitchingMetaData() (*proto.MergedEntityMetada
 
 func (f *SupplyChainFactory) buildWorkloadControllerSupplyBuilder() (*proto.TemplateDTO, error) {
 	builder := supplychain.NewSupplyChainNodeBuilder(proto.EntityDTO_WORKLOAD_CONTROLLER)
-	// Link from Pod to VM
 	workloadControllerVMLink := supplychain.NewExternalEntityLinkBuilder()
 	workloadControllerVMLink.Link(proto.EntityDTO_WORKLOAD_CONTROLLER, proto.EntityDTO_VIRTUAL_MACHINE, proto.Provider_LAYERED_OVER)
 
@@ -79,4 +88,9 @@ func (f *SupplyChainFactory) buildWorkloadControllerSupplyBuilder() (*proto.Temp
 		return nil, err
 	}
 	return builder.ConnectsTo(workloadControllerLink).Create()
+}
+
+func (f *SupplyChainFactory) buildVMSpecSupplyBuilder() (*proto.TemplateDTO, error) {
+	builder := supplychain.NewSupplyChainNodeBuilder(proto.EntityDTO_VM_SPEC)
+	return builder.Create()
 }
