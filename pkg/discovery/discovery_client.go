@@ -127,8 +127,7 @@ func (dc *DiscoveryClient) Discover(accountValues []*proto.AccountValue) (*proto
 					}
 					entityDTOs = append(entityDTOs, awsEntityDtos...)
 				}
-			}
-			if resource.Type == "azurerm_linux_virtual_machine" || resource.Type == "azurerm_windows_virtual_machine" {
+			} else if resource.Type == "azurerm_linux_virtual_machine" || resource.Type == "azurerm_windows_virtual_machine" {
 				azureParser := parser.NewAzureParser(resource, tfStateFilePath, dirPath, files)
 				azureEntityDtos, azureGroupDTOS, e := azureParser.GetAzureInstanceResource(EntityIdToFilesMap)
 				if e != nil {
@@ -138,6 +137,19 @@ func (dc *DiscoveryClient) Discover(accountValues []*proto.AccountValue) (*proto
 				entityDTOs = append(entityDTOs, azureEntityDtos...)
 				groupDTOs = append(groupDTOs, azureGroupDTOS...)
 				//members = append(members, mem...)
+			} else if resource.Type == "vsphere_virtual_machine" {
+				if resource.Name == "template" {
+					continue
+				}
+				vsParser := parser.NewVSphereParser(resource, tfStateFilePath, dirPath, files)
+				vmEntityDtos, vmGroupDTOS, e := vsParser.ParseVSphereInstanceResource(EntityIdToFilesMap)
+				if e != nil {
+					glog.Errorf("Error building EntityDTO and GroupDTO for AZURE Instances %s", err)
+					return nil, err
+				}
+				entityDTOs = append(entityDTOs, vmEntityDtos...)
+				groupDTOs = append(groupDTOs, vmGroupDTOS...)
+
 			}
 		}
 		entityDTOs = append(entityDTOs, wcDto)
