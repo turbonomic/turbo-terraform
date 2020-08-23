@@ -37,13 +37,13 @@ func CreateGroupDto(path string, name string, instances []string) (*proto.GroupD
 	return groupDTO, nil
 }
 
-func CreateWorkloadControllerDto(name string) (*proto.EntityDTO, error) {
-	entityDto, err := builder.NewEntityDTOBuilder(proto.EntityDTO_WORKLOAD_CONTROLLER, name).
+func CreateWorkloadControllerDto(id string, name string) (*proto.EntityDTO, error) {
+	entityDto, err := builder.NewEntityDTOBuilder(proto.EntityDTO_WORKLOAD_CONTROLLER, id).
 		DisplayName(name).
 		Monitored(true).
 		Create()
 	if err != nil {
-		glog.Errorf("Error building EntityDTO for name %s: %s", name, err)
+		glog.Errorf("Error building EntityDTO for name %s: %s", id, err)
 		return nil, err
 	}
 	return entityDto, nil

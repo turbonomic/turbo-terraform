@@ -2,6 +2,7 @@ package action
 
 import (
 	"fmt"
+	"github.com/enlinxu/turbo-terraform/pkg/action/executor"
 	"github.com/golang/glog"
 	sdkprobe "github.com/turbonomic/turbo-go-sdk/pkg/probe"
 	"github.com/turbonomic/turbo-go-sdk/pkg/proto"
@@ -11,14 +12,16 @@ import (
 type ActionHandler struct {
 	actionExecutors map[TurboActionType]TurboExecutor
 	stop            chan struct{}
+	tfToken         *string
 }
 
-func NewActionHandler() *ActionHandler {
+func NewActionHandler(tfToken *string) *ActionHandler {
 	executors := make(map[TurboActionType]TurboExecutor)
 
 	handler := &ActionHandler{
 		stop:            make(chan struct{}),
 		actionExecutors: executors,
+		tfToken:         tfToken,
 	}
 
 	handler.registerExecutors()
@@ -36,8 +39,10 @@ func (h *ActionHandler) String() string {
 }
 
 func (h *ActionHandler) registerExecutors() {
-	vmScaler := NewActionExecutor("vmScale")
+	vmScaler := executor.NewScaleActionExecutor("vmScale", h.tfToken)
+	vmResizer := executor.NewResizeActionExecutor("vmResize")
 	h.actionExecutors[ActionScaleVM] = vmScaler
+	h.actionExecutors[ActionResizeVM] = vmResizer
 }
 
 func (h *ActionHandler) goodResult(msg string) *proto.ActionResult {
@@ -130,6 +135,12 @@ func getActionType(action *proto.ActionItemDTO) (TurboActionType, error) {
 		switch objectType {
 		case proto.EntityDTO_VIRTUAL_MACHINE:
 			return ActionScaleVM, nil
+		}
+	case proto.ActionItemDTO_RIGHT_SIZE:
+		glog.V(4).Infof("[%v] [%v]", atype, objectType)
+		switch objectType {
+		case proto.EntityDTO_VIRTUAL_MACHINE:
+			return ActionResizeVM, nil
 		}
 	}
 

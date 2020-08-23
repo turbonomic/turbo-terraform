@@ -20,12 +20,16 @@ var (
 	targetConf string
 	opsMgrConf string
 	tfPath     string
+	tfToken    string
+	org        string
 )
 
 func getFlags() {
 	flag.StringVar(&opsMgrConf, "turboConf", "./conf/turbo.json", "configuration file of OpsMgr")
 	flag.StringVar(&targetConf, "targetConf", "./conf/target.json", "configuration file of target")
 	flag.StringVar(&tfPath, "tfpath", "", "Terraform Assets Location")
+	flag.StringVar(&tfToken, "tftoken", "", "Terraform Enterprise Token")
+	flag.StringVar(&org, "org", "", "org to discover")
 	flag.Set("alsologtostderr", "true")
 	flag.Parse()
 }
@@ -37,8 +41,8 @@ func buildProbe(targetConf string) (*probe.ProbeBuilder, error) {
 	}
 
 	regClient := &registration.TFRegistrationClient{}
-	discoveryClient := discovery.NewDiscoveryClient(config, &tfPath)
-	actionHandler := action.NewActionHandler()
+	discoveryClient := discovery.NewDiscoveryClient(config, &tfPath, &tfToken, &org)
+	actionHandler := action.NewActionHandler(&tfToken)
 
 	builder := probe.NewProbeBuilder(config.TargetType, config.ProbeCategory, config.ProbeCategory).
 		RegisteredBy(regClient).
@@ -77,8 +81,8 @@ func main() {
 	getFlags()
 	glog.Info("Starting Turbo Terraform...")
 	glog.Infof("GIT_COMMIT: %s", os.Getenv("GIT_COMMIT"))
-	if tfPath == "" {
-		glog.Errorf("Terraform file path has to be provided with -tfpath=<file_path>")
+	if tfPath == "" && tfToken == "" {
+		glog.Errorf("Terraform file path or tfToken has to be provided with -tfpath=<file_path> or -tftoken=<token>")
 		os.Exit(1)
 	}
 	tap, err := createTapService()

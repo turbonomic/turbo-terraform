@@ -56,7 +56,6 @@ func (rClient *TFRegistrationClient) GetActionPolicy() []*proto.ActionPolicyDTO 
 	node := proto.EntityDTO_VIRTUAL_MACHINE
 	nodePolicy := make(map[proto.ActionItemDTO_ActionType]proto.ActionPolicyDTO_ActionCapability)
 	nodePolicy[proto.ActionItemDTO_RIGHT_SIZE] = supported
-	nodePolicy[proto.ActionItemDTO_MOVE] = supported
 	nodePolicy[proto.ActionItemDTO_SCALE] = supported
 	rClient.addActionPolicy(ab, node, nodePolicy)
 

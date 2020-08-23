@@ -5,7 +5,6 @@ import (
 	"github.com/enlinxu/turbo-terraform/pkg/discovery/dtos"
 	"github.com/golang/glog"
 	"github.com/turbonomic/turbo-go-sdk/pkg/proto"
-	"strings"
 )
 
 type AwsInstance struct {
@@ -22,19 +21,19 @@ type AwsParser struct {
 	resource             *Resource
 	tfStatePath          string
 	workloadControllerId string
-	files                map[string]struct{}
+	assets               map[string]struct{}
 }
 
-func NewAwsParser(resource *Resource, path string, workloadControllerId string, files map[string]struct{}) *AwsParser {
+func NewAwsParser(resource *Resource, path string, workloadControllerId string, assets map[string]struct{}) *AwsParser {
 	return &AwsParser{
 		resource:             resource,
 		tfStatePath:          path,
 		workloadControllerId: workloadControllerId,
-		files:                files,
+		assets:               assets,
 	}
 }
 
-func (parser *AwsParser) ParseAwsInstanceResource(entityToFilesMap map[string]map[string]struct{}) ([]*proto.EntityDTO, []*proto.GroupDTO, []string, error) {
+func (parser *AwsParser) ParseAwsInstanceResource(entityToAssetsMap map[string]map[string]struct{}) ([]*proto.EntityDTO, []*proto.GroupDTO, error) {
 	var entityDTOs []*proto.EntityDTO
 	var groupDTOs []*proto.GroupDTO
 	name := parser.resource.Name
@@ -48,24 +47,24 @@ func (parser *AwsParser) ParseAwsInstanceResource(entityToFilesMap map[string]ma
 		entityDto, e := dtos.CreateEntityDto(proto.EntityDTO_VIRTUAL_MACHINE, name, id, entityPropertyName, workloadControllerId)
 		if e != nil {
 			glog.Errorf("Error building EntityDTO from metric %s", e)
-			return nil, nil, nil, e
+			return nil, nil, e
 		}
 		entityDTOs = append(entityDTOs, entityDto)
-		entityToFilesMap[entityPropertyName] = parser.files
+		entityToAssetsMap[entityPropertyName] = parser.assets
 		members = append(members, id)
 	}
 
 	if len(parser.resource.Instances) > 1 {
 		//For the group name here, use the directory of the tf state location.
-		groupDto, e := dtos.CreateGroupDto(parser.tfStatePath[:strings.LastIndex(parser.tfStatePath, "/")+1], name, members)
+		groupDto, e := dtos.CreateGroupDto(parser.tfStatePath, name, members)
 		if e != nil {
 			glog.Errorf("Error building groupDTO from metric %s", e)
-			return nil, nil, nil, e
+			return nil, nil, e
 		}
 		groupDTOs = append(groupDTOs, groupDto)
 	}
 
-	return entityDTOs, groupDTOs, members, nil
+	return entityDTOs, groupDTOs, nil
 }
 
 func (parser *AwsParser) ParseAwsASGResource() ([]*proto.EntityDTO, error) {

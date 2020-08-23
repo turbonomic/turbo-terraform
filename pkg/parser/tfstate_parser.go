@@ -38,3 +38,14 @@ func ParseTerraformStateFile(path string) (*TFState, error) {
 
 	return terraformState, nil
 }
+
+// Parse the Terraform .tfstate file at the given path
+func ParseTerraformStateAPI(bytes []byte) (*TFState, error) {
+	terraformState := &TFState{}
+
+	if err := json.Unmarshal(bytes, terraformState); err != nil {
+		return nil, fmt.Errorf("Unmarshall error :%v", err.Error())
+	}
+
+	return terraformState, nil
+}
